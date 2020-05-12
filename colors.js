@@ -2,11 +2,9 @@ const A = {
   setColor:function(color){
     const aList = document.querySelectorAll('a');
 
-    // for (let i = 0; i < aList.length; i++){
-    //   aList[i].style.color = color;
-    // }
-
-    $('a').css("color", color);
+    for (let i = 0; i < aList.length; i++){
+      aList[i].style.color = color;
+    }
   }
 }
 
