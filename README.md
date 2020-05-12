@@ -6,3 +6,5 @@
 -HTML  
 -CSS  
 -JavaScript  
+-AJAX  
+
