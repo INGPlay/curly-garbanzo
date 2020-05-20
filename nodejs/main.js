@@ -4,6 +4,7 @@ const url = require('url');
 const qs = require('querystring');
 const template = require('./module/template.js');
 const path = require('path');
+const database = require('./module/database.js');
 
 const app = http.createServer(function(request,response){
     const _url = request.url;
@@ -14,28 +15,42 @@ const app = http.createServer(function(request,response){
       filteredId = path.parse(queryData.id).base;
     }
 
-
-    let title = queryData.id;
-    let list = '';
+    let title = '';
     let description = '';
     let button = '';
+    let page = '';
+    let nickname = '';
+    //process 변수
     let body = '';
+    let id = '';
+    let authorID = '';
 
     switch(pathname){
       case '/':
-        button = "writer";
-        if (title === undefined){
-            title = 'Welcome';
-            button = "reader";
-            filteredId = "Welcome";
-        }
 
-        fs.readdir(`./data`, function(error, fileList){
+        database.query('SELECT * FROM topic', function(error, topics){
+          if (error){
+            throw error;
+          }
 
-          fs.readFile(`./data/${filteredId}`, function(error, data){
-            description = data;
+          database.query(`SELECT title, description, name FROM topic LEFT JOIN author ON topic.authorID = author.id WHERE topic.id = ?`, 
+          [filteredId], 
+          function(error2, topic){
+            if (error2){
+              throw error2;
+            }
 
-            let page = template.html(title, description, fileList, button);
+            if (filteredId === undefined){
+              title = 'Welcome';
+              description = 'Home';
+              button = "reader";
+            } else {
+              title = topic[0].title;
+              description = topic[0].description;
+              button = 'writer';
+              nickname = topic[0].name;
+            }
+            page = template.html(title, description, topics, button, filteredId, "read", nickname);
 
             response.writeHead(200);
             response.end(page);
@@ -44,29 +59,45 @@ const app = http.createServer(function(request,response){
         break;
 
         case '/create':
-          title = 'WEB - Create';
-          button = "none";
 
-          fs.readdir(`./data`, function(error, fileList){
+          database.query('SELECT * FROM topic', function(error, topics){
+            if (error){
+              throw error;
+            }
+            database.query('SELECT name FROM author', function(error2, authorList){
+              if (error2){
+                throw error2;
+              }
 
-            let page = template.html(title,  description, fileList, button, "create")
-
-            response.writeHead(200);
-            response.end(page);
+              title = 'WEB - Create';
+              button = "none";
+  
+              page = template.html(title, description, topics, button, filteredId, "create", authorList);
+  
+              response.writeHead(200);
+              response.end(page);
+            })
           });
           break;
 
         case '/create_process':
+
           request.on('data', function(data){
             body += data;
           }).on('end', function(){
-            let post = qs.parse(body);
+            const post = qs.parse(body);
 
             title = post.title;
             description = post.description;
+            authorID = post.author;
+            database.query('INSERT INTO topic (title, description, created, authorID) VALUES(?, ?, NOW(), ?)', 
+            [title, description, authorID], 
+            function(error, data){
+              if (error){
+                throw error;
+              }
 
-            fs.writeFile(`data/${title}`, description, 'utf-8', function(error){
-              response.writeHead(302, {Location: `/?id=${title}`});
+              response.writeHead(302, {Location: `/?id=${data.insertId}`});
               response.end();
             })
           });
@@ -74,38 +105,62 @@ const app = http.createServer(function(request,response){
           break;
 
         case '/update':
+
           button = "none";
 
-          fs.readdir(`./data`, function(error, fileList){
+          database.query(`SELECT * FROM topic`, function(error, topicList){
+            if (error){
+              throw error;
+            }
+            database.query(`SELECT title, description FROM topic WHERE id = ?`, [filteredId], function(error2, topic){
+              if (error2){
+                throw error2;
+              }
+              database.query(`SELECT name FROM author`, function(error3, authorList){
+                if (error3){
+                  throw error3;
+                }
+                database.query(`SELECT authorID FROM topic WHERE id = ?`, 
+                [filteredId], 
+                function(error4, authorID){
 
-            fs.readFile(`./data/${filteredId}`, function(error, data){
-              description = data;
-
-              let page = template.html(title, description, fileList, button, "update");
-
-              response.writeHead(200);
-              response.end(page);
+                  title = topic[0].title;
+                  description = topic[0].description;
+                  authorIDNum = authorID[0].authorID;
+    
+                  page = template.html(title, description, topicList, button, filteredId, "update", authorList, authorIDNum);
+    
+                  response.writeHead(200);
+                  response.end(page);
+                })
+              })
             })
           });
+
           break;
 
         case '/update_process':
           request.on('data', function(data){
             body += data;
           }).on('end', function(){
-            let post = qs.parse(body);
+            const post = qs.parse(body);
 
             title = post.title;
             description = post.description;
-            const id = post.id;
+            id = post.id;
+            authorID = post.author;
 
-            fs.rename(`data/${id}`, `data/${title}`, function(error){
-              fs.writeFile(`data/${title}`, description, 'utf-8', function(error){
-                response.writeHead(302, {Location: `/?id=${title}`});
-                response.end();
-              })
+            database.query(`UPDATE topic SET title = ?, description = ?, created = NOW(), authorID = ? WHERE id = ?`,
+            [title, description, authorID, id],
+            function(error, data){
+              if (error){
+                throw error;
+              }
+              response.writeHead(302, {Location: `/?id=${id}`});
+              response.end();
             })
-          });
+          })
+
           break;
 
         case '/delete_process':
@@ -114,13 +169,19 @@ const app = http.createServer(function(request,response){
           }).on('end', function(){
             let post = qs.parse(body);
 
-            const id = post.id;
+            id = post.id;
 
-            fs.unlink(`./Data/${id}`, function(error){
+            database.query(`DELETE FROM topic WHERE id = ?`, 
+            [id],
+            function(error, data){
+              if (error){
+                throw error;
+              }
               response.writeHead(302, {Location: `/`});
               response.end();
             })
           });
+
           break;
 
         default:
