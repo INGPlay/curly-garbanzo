@@ -3,8 +3,9 @@ const sanitizeHtml = require('sanitize-html');
 const template = {
   // createUpdateDelete = { "none", "writer", "reader" }
   // formStr = { "read", "create", "update" }
-  html(title, description, fileList, createUpdateDelete, formStr = "read"){
+  html(title, description, topics, createUpdateDelete, id, formStr, nameOrList, authorID = undefined){
 
+    // 텍스트 정화
     const sanitizedTitle = sanitizeHtml(title,{
       allowedTags: [],
       allowedAttributes: {},
@@ -12,6 +13,7 @@ const template = {
     });
     const sanitizedDescription = sanitizeHtml(description);
 
+    // 버튼 선택
     let button;
     switch (createUpdateDelete) {
       case "none":
@@ -21,9 +23,9 @@ const template = {
       case "writer":
         button = `
           <a href = '/create'>create</a>
-          <a href = '/update?id=${title}'>update</a>
+          <a href = '/update?id=${id}'>update</a>
           <form action="delete_process" method="post">
-            <input type="hidden" name="id" value="${title}">
+            <input type="hidden" name="id" value="${id}">
             <input type="submit" value="delete">
           </form>
         `;
@@ -40,16 +42,30 @@ const template = {
         break;
     }
 
+    // 페이지 양식
     let content;
     switch(formStr){
       case "read":
+        let readForm = `by ${nameOrList}`;
+        if (nameOrList === undefined || nameOrList === ''){
+          readForm = ''; 
+        }
+
         content = `
-          <h2>${title}</h2>
-            <p>${sanitizedDescription}</p>`;
+          <h2>${sanitizedTitle}</h2>
+            <p>${sanitizedDescription}</p>
+            ${readForm}`;
         break;
 
       case "create":
+        nameForm = '<select name = "author">';
+        for (let i = 0; i < nameOrList.length; i++){
+          nameForm += `<option value = '${i + 1}'>${nameOrList[i].name}</option>`;
+        }
+        nameForm += '</select>'
+
         content = `
+          <h2>${sanitizedTitle}</h2>
           <p>
             <form action = "/create_process" method ="post">
               <p>
@@ -57,6 +73,9 @@ const template = {
               </p>
               <p>
                 <textarea name = "description" placeholder = "description"></textarea>
+              </p>
+              <p>
+                ${nameForm}
               </p>
               <p>
                 <input type="submit">
@@ -67,15 +86,27 @@ const template = {
         break;
 
       case "update":
+        let formName = '<select name = "author">';
+        for (let i = 0; i < nameOrList.length; i++){
+          if (authorID === i + 1){
+            formName += `<option value = '${i + 1}' selected>${nameOrList[i].name}</option>`;
+
+            continue;
+          }
+          formName += `<option value = '${i + 1}'>${nameOrList[i].name}</option>`;
+        }
+        formName += '</select>'
+
         content = `
           <form action = "/update_process" method ="post">
-            <input type = "hidden" name = "id" value = "${title}">
+            <input type = "hidden" name = "id" value = "${id}">
             <p>
-              <input type="text" name = "title" value = "${title}" placeholder = "title">
+              <input type="text" name = "title" value = "${sanitizedTitle}" placeholder = "title">
             </p>
             <p>
               <textarea name = "description" placeholder = "description">${sanitizedDescription}</textarea>
             </p>
+            ${formName}
             <p>
               <input type="submit">
             </p>
@@ -88,24 +119,26 @@ const template = {
           break;
     }
 
+    // 리스트 생성
     let list = '<ul>'
-    for (let i = 0; i < fileList.length; i++){
-      const file = fileList[i];
+    for (let i = 0; i < topics.length; i++){
+      const topic = topics[i];
+      const file = topic.title;
+      const id = topic.id;
       if (file === 'Welcome'){
         continue;
       }
 
-      list += `<li><a href="/?id=${file}">${file}</a></li>`;
+      list += `<li><a href="/?id=${id}">${file}</a></li>`;
     }
     list += '</ul>';
 
-
-
+    // 페이지 결합
     let template = `
       <!doctype html>
       <html>
       <head>
-        <title>WEB1 - ${title}</title>
+        <title>WEB1 - ${sanitizedTitle}</title>
         <meta charset="utf-8">
       </head>
       <body>
