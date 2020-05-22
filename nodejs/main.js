@@ -11,6 +11,9 @@ const app = http.createServer(function(request,response){
     let queryID;
     if (queryData.id !== undefined){
       queryID = path.parse(queryData.id).base;
+    } 
+    else if (queryData.authorID !== undefined){
+        queryID = path.parse(queryData.authorID).base;
     }
     
     const pathname = url.parse(_url, true).pathname;
@@ -47,6 +50,35 @@ const app = http.createServer(function(request,response){
         case '/delete_process':
             process.delete(request, response);
 
+            break;
+        
+        case '/author':
+            template.html(response, "author", queryID);
+
+            break;
+        
+        case '/createAuthor':
+            template.html(response, "createAuthor", queryID);
+            break;
+        
+        case '/createAuthor_process':
+            process.createAuthor(request, response);
+
+            break;
+
+        case '/updateAuthor':
+            template.html(response, "updateAuthor", queryID);
+            
+            break;
+        
+        case '/updateAuthor_process':
+            process.updateAuthor(request, response);
+
+            break;
+
+        case '/deleteAuthor_process':
+            process.deleteAuthor(request, response);
+            
             break;
 
         default:

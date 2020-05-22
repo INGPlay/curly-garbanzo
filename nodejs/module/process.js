@@ -2,6 +2,7 @@ const database = require('./database.js');
 const queryString = require('querystring');
 const sanitizeHtml = require('sanitize-html');
 
+// 입력되어 들어오는 데이터는 다 sanitize 할 것!!!
 const process = {
     create(request, response) {
         let body = '';
@@ -62,14 +63,88 @@ const process = {
             database.query(`DELETE FROM topic WHERE id = ?`, 
             [id],
             function(error, data){
-            if (error){
-                throw error;
-            }
+                if (error){
+                    throw error;
+                }
 
-            response.writeHead(302, {Location: `/`});
-            response.end();
+                response.writeHead(302, {Location: `/`});
+                response.end();
             })
         });
+    },
+    createAuthor(request, response){
+        let body = '';
+        request.on('data', function(data){
+            body += data;
+        }).on('end', function(){
+            let post = queryString.parse(body);
+
+            const name = sanitizeHtml(post.name);
+            const profile = sanitizeHtml(post.profile);
+
+            database.query('INSERT INTO author (name,profile) VALUES(?, ?)',
+            [name, profile],
+            function(error, data){
+                if (error){
+                    throw error;
+                }
+
+                response.writeHead(302, {Location: `/author`});
+                response.end();
+            })
+        })
+    },
+    updateAuthor(request, response) {
+        let body = '';
+        request.on('data', function(data){
+            body += data;
+        }).on('end', function(){
+            let post = queryString.parse(body);
+
+            const name = sanitizeHtml(post.name);
+            const profile = sanitizeHtml(post.profile);
+            const authorID = post.id;
+
+            database.query(`UPDATE author SET name = ?, profile = ? WHERE id = ?`,
+            [name, profile, authorID],
+            function(error, data){
+                if (error){
+                    throw error;
+                }
+
+                response.writeHead(302, {Location: `/author`});
+                response.end();
+            })
+        })
+    },
+    deleteAuthor(request, response) {
+        let body = '';
+        request.on('data', function(data){
+            body += data;
+        }).on('end', function(){
+            let post = queryString.parse(body);
+
+            const authorID = post.authorID;
+
+            database.query(`DELETE FROM author WHERE id = ?`,
+            [authorID],
+            function(error, data){
+                if (error){
+                    throw error;
+                }
+                
+                database.query(`DELETE FROM topic WHERE authorID = ?`,
+                [authorID],
+                function(error2, data){
+                    if (error2){
+                        throw error2;
+                    }
+
+                    response.writeHead(302, {Location: `/author`});
+                    response.end();
+                })
+            })
+        })
     }
 }
 module.exports = process;
