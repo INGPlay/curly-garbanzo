@@ -1,12 +1,12 @@
 const listMaker = {
-    thread(all){
+    thread(threadList){
         let list = '<ul>';
-        for (let i = 0; i < all.length; i++){
-            const topic = all[i];
+        for (let i = 0; i < threadList.length; i++){
+            const topic = threadList[i];
             const title = topic.title;
             const id = topic.id;
     
-            list += `<li><a href="/?id=${id}">${title}</a></li>`;
+            list += `<li><a href="/page/${id}">${title}</a></li>`;
         }
         list += '</ul>';
     
@@ -33,8 +33,8 @@ const listMaker = {
                 <tr>
                     <td>${name}</td>
                     <td>${profile}</td>
-                    <td><a href = "/updateAuthor?authorID=${authorID}">update<a><td>
-                    <form action="deleteAuthor_process" method="post">
+                    <td><a href = "/updateAuthor/${authorID}">update<a><td>
+                    <form action="/deleteAuthor_process" method="post">
                         <input type="hidden" name="authorID" value="${authorID}">
                         <input type="submit" value="delete">
                     </form>

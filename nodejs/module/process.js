@@ -1,3 +1,4 @@
+// fuction
 const database = require('./database.js');
 const queryString = require('querystring');
 const sanitizeHtml = require('sanitize-html');
@@ -8,7 +9,8 @@ const process = {
         let body = '';
         request.on('data', function(data){
             body += data;
-        }).on('end', function(){
+        }).on('end', 
+        function(){
             const post = queryString.parse(body);
 
             const title = sanitizeHtml(post.title);
@@ -18,12 +20,11 @@ const process = {
             database.query('INSERT INTO topic (title, description, created, authorID) VALUES(?, ?, NOW(), ?)', 
             [title, description, authorID], 
             function(error, data){
-            if (error){
-                throw error;
-            }
+                if (error){
+                    throw error;
+                }
 
-            response.writeHead(302, {Location: `/?id=${data.insertId}`});
-            response.end();
+                response.redirect(302, `/page/${data.insertId}`);
             })
         });
     },
@@ -42,12 +43,11 @@ const process = {
             database.query(`UPDATE topic SET title = ?, description = ?, created = NOW(), authorID = ? WHERE id = ?`,
             [title, description, authorID, id],
             function(error, data){
-            if (error){
-                throw error;
-            }
+                if (error){
+                    throw error;
+                }
 
-            response.writeHead(302, {Location: `/?id=${id}`});
-            response.end();
+                response.redirect(302, `/page/${id}`);
             })
         })
     },
@@ -67,8 +67,7 @@ const process = {
                     throw error;
                 }
 
-                response.writeHead(302, {Location: `/`});
-                response.end();
+                response.redirect(302, `/`);
             })
         });
     },
@@ -89,8 +88,7 @@ const process = {
                     throw error;
                 }
 
-                response.writeHead(302, {Location: `/author`});
-                response.end();
+                response.redirect(302, `/author`);
             })
         })
     },
@@ -112,8 +110,7 @@ const process = {
                     throw error;
                 }
 
-                response.writeHead(302, {Location: `/author`});
-                response.end();
+                response.redirect(302, `/author`);
             })
         })
     },
@@ -140,8 +137,7 @@ const process = {
                         throw error2;
                     }
 
-                    response.writeHead(302, {Location: `/author`});
-                    response.end();
+                    response.redirect(302, `/author`);
                 })
             })
         })

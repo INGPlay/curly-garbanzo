@@ -1,258 +1,287 @@
+// object
 const database = require('./database.js');
 const buttonSelector = require('./buttonSelector.js');
 const listMaker = require('./listMaker.js');
+// function
+const authorSelector = require('./authorSelector.js');
+const form = require('./form.js');
+
 
 const template = {
-    // formStr = {"home", "read", "create", "update", "author", "createAuthor", "updateAuthor"}
-    html(response, formStr, queryID){
+    home(response){
 
-        database.query(`SELECT * FROM topic LEFT JOIN author ON topic.authorID = author.id WHERE topic.id = ?`,
-        [queryID],
-        function(error, thread){
+        database.query(`SELECT topic.id, title, authorID, name FROM topic LEFT JOIN author ON topic.authorID = author.id`,
+        (error2, threadList) => {
+            if (error2){
+                throw error2;
+            }
+            const list = listMaker.thread(threadList);
+    
+            const title = 'Home';
+            const description = 'Welcome';
+            const button = buttonSelector.oneButton();
+            const pageTitle = title;
+        
+            const content = `
+                <h2>${title}</h2>
+                <p>${description}</p>
+            `;
+    
+            // 페이지 결합
+            const template = form(pageTitle, list, button, content)
+            response.send(template);
+        });
+    },
+    read(request, response){
+
+        const param = request.params.pageID;
+
+        database.query(`SELECT topic.id, title, authorID, name FROM topic LEFT JOIN author ON topic.authorID = author.id`,
+        function(error, threadList){
             if (error){
                 throw error;
             }
-
-            database.query(`SELECT topic.id, title, authorID, name FROM topic LEFT JOIN author ON topic.authorID = author.id`,
-            function(error2, threadList){
+    
+            database.query(`SELECT * FROM topic LEFT JOIN author ON topic.authorID = author.id WHERE topic.id = ?`,
+            [param],
+            function(error2, thread){
                 if (error2){
                     throw error2;
                 }
+    
+                const title = thread[0].title;
+                const description = thread[0].description;
+                const byAuthor = `by ${thread[0].name}`;
+    
+                const content = `
+                    <h2>${title}</h2>
+                    <p>${description}</p>
+                    ${byAuthor}
+                `;
+    
+                const pageTitle = title;
+                const list = listMaker.thread(threadList);
+                const button = buttonSelector.threeButton(param);
+        
+                // 페이지 결합
+                const template = form(pageTitle, list, button, content)
+                response.send(template);
+            });
+        });
+    },
+    create(response){
 
-                database.query(`SELECT * FROM author`,
-                function(error3, authorList){
+        database.query(`SELECT topic.id, title, authorID, name FROM topic LEFT JOIN author ON topic.authorID = author.id`,
+        function(error, threadList){
+            if (error){
+                throw error;
+            }
+    
+            database.query(`SELECT * FROM author`,
+            function(error2, authorList){
+                if (error2){
+                    throw error2;
+                }
+    
+                const selector = authorSelector(authorList);
+    
+                const linkTo = '/create_process';
+                const titleStr = 'title';
+                const descriptionStr = 'description';
+    
+                const content = `
+                    <p>
+                        <form action = "${linkTo}" method ="post">
+                            <p>
+                                <input type="text" name = "${titleStr}" placeholder = "${titleStr}">
+                            </p>
+                            <p>
+                                <textarea name = "${descriptionStr}" placeholder = "${descriptionStr}"></textarea>
+                            </p>
+                            <p>
+                                ${selector}
+                            </p>
+                            <p>
+                                <input type="submit">
+                            </p>
+                        </form>
+                    </p>
+                `;
+    
+                const button = buttonSelector.none();
+                const list = listMaker.thread(threadList);
+                const pageTitle = 'Create';
+            
+                // 페이지 결합
+                const template = form(pageTitle, list, button, content);
+    
+                response.send(template);
+            });
+        });
+    },
+    update(request, response){
+
+        const pageID = request.params.pageID;
+
+        database.query(`SELECT topic.id, title, authorID, name FROM topic LEFT JOIN author ON topic.authorID = author.id`,
+        function(error, threadList){
+            if (error){
+                throw error;
+            }
+    
+            database.query(`SELECT * FROM author`,
+            function(error2, authorList){
+                if (error2){
+                    throw error2;
+                }
+    
+                database.query(`SELECT * FROM topic LEFT JOIN author ON topic.authorID = author.id WHERE topic.id = ?`,
+                [pageID],
+                function(error3, thread){
                     if (error3){
                         throw error3;
                     }
+    
+                    const id = pageID;
+    
+                    const selector = authorSelector(authorList, thread[0].authorID);
+                    const title = thread[0].title;
+                    const description = thread[0].description;
                     
-                    database.query(`SELECT * FROM author WHERE id = ?`,
-                    [queryID],
-                    function(error4, author){
-                        if (error4){
-                            throw error4;
-                        }
-
-                        // 페이지별 양식 (content), button 할당, pageTitle 할당, list 할당
-                        let content = '';
-                        let button = '';
-                        let pageTitle = '';
-                        let list = '';
-                        switch(formStr){
-                            case "home":
-                                {
-                                    const title = 'Home';
-                                    const description = 'Welcome';
-
-                                    content = `
-                                        <h2>${title}</h2>
-                                        <p>${description}</p>
-                                    `;
-
-                                    button = buttonSelector.oneButton();
-                                    pageTitle = title;
-                                    list = listMaker.thread(threadList);
-                                }
-                                break;
-                            case "read":
-                                {
-                                    const title = thread[0].title;
-                                    const description = thread[0].description;
-                                    const byAuthor = `by ${thread[0].name}`;
-                    
-                                    content = `
-                                        <h2>${title}</h2>
-                                        <p>${description}</p>
-                                        ${byAuthor}
-                                    `;
-
-                                    button = buttonSelector.threeButton(queryID);
-                                    pageTitle = title;
-                                    list = listMaker.thread(threadList);
-                                }
+                    const linkTo = '/update_process';
+                    const titleStr = 'title';
+                    const descriptionStr = 'description';
+                    const idStr = 'id';
                 
-                                break;
+                    const content = `
+                        <form action = "${linkTo}" method ="post">
+                            <input type = "hidden" name = "${idStr}" value = "${id}">
+                            <p>
+                                <input type="text" name = "${titleStr}" value = "${title}" placeholder = "${titleStr}">
+                            </p>
+                            <p>
+                                <textarea name = "${descriptionStr}" placeholder = "${descriptionStr}">${description}</textarea>
+                            </p>
+                            ${selector}
+                            <p>
+                                <input type="submit">
+                            </p>
+                        </form>
+                    `;
                 
-                            case "create":
-                                {
-                                    const linkTo = '/create_process';
-                                    const titleStr = 'title';
-                                    const descriptionStr = 'description';
+                    const pageTitle = 'Update';
+                    const list = listMaker.thread(threadList);
+                    const button = buttonSelector.none();
+    
+                    // 페이지 결합
+                    const template = form(pageTitle, list, button, content);
+    
+                    response.send(template);
+                });
+            });
+        });
+    },
+    author(response){
 
-                                    const selector = authorSelector(authorList);
+        database.query(`SELECT * FROM author`,
+        function(error, authorList){
+            if (error){
+                throw error;
+            }
+            const pageTitle = "Author";
+            const list = listMaker.author(authorList);
+            const button = buttonSelector.none();
+            const content = '';
+    
+            const template = form(pageTitle, list, button, content);
+    
+            response.send(template);
+        });
+    },
+    createAuthor(response){
+
+        database.query(`SELECT * FROM author`,
+        function(error, authorList){
+            if (error){
+                throw error;
+            }
+            const pageTitle = "CreateAuthor";
+            const list = listMaker.author(authorList);
+            const button = buttonSelector.none();
+
+            const linkTo = '/createAuthor_process';
+            const nameStr = 'name';
+            const profileStr = 'profile';
+
+            const content =`
+                <p>
+                <form action = "${linkTo}" method ="post">
+                    <p>
+                        <input type="text" name = "${nameStr}" placeholder = "${nameStr}">
+                    </p>
+                    <p>
+                        <textarea name = "${profileStr}" placeholder = "${profileStr}"></textarea>
+                    </p>
+                    <p>
+                        <input type="submit">
+                    </p>
+                </form>
+                </p>
+            `;
+    
+            const template = form(pageTitle, list, button, content);
+        
+            response.send(template);
+        });
+    },
+    updateAuthor(request, response){
+
+        const param = request.params.pageID;
+
+        database.query(`SELECT * FROM author`,
+        function(error, authorList){
+            if (error){
+                throw error;
+            }
+            
+            database.query(`SELECT * FROM author WHERE id = ?`,
+            [param],
+            function(error2, author){
+                if (error2){
+                    throw error2;
+                }
+                const linkTo = '/updateAuthor_process';
+                const idStr = 'id';
+                const nameStr = 'name';
+                const profileStr = 'profile';
+        
+                const authorID = author[0].id;
+                const name = author[0].name;
+                const profile = author[0].profile;
+                const content = `
+                    <form action = "${linkTo}" method ="post">
+                        <input type = "hidden" name = "${idStr}" value = "${authorID}">
+                        <p>
+                            <input type="text" name = "${nameStr}" value = "${name}" placeholder = "${nameStr}">
+                        </p>
+                        <p>
+                            <textarea name = "${profileStr}" placeholder = "${profileStr}">${profile}</textarea>
+                        </p>
+                        <p>
+                            <input type="submit">
+                        </p>
+                    </form>
+                `;
+        
+                const pageTitle = "UpdateAuthor";
+                const list = listMaker.author(authorList);
+                const button = buttonSelector.none();
+        
+                const template = form(pageTitle, list, button, content);
                 
-                                    content = `
-                                        <p>
-                                        <form action = "${linkTo}" method ="post">
-                                            <p>
-                                                <input type="text" name = "${titleStr}" placeholder = "${titleStr}">
-                                            </p>
-                                            <p>
-                                                <textarea name = "${descriptionStr}" placeholder = "${descriptionStr}"></textarea>
-                                            </p>
-                                            <p>
-                                                ${selector}
-                                            </p>
-                                            <p>
-                                                <input type="submit">
-                                            </p>
-                                        </form>
-                                        </p>
-                                    `;
-
-                                    button = buttonSelector.none();
-                                    pageTitle = 'Create';
-                                    list = listMaker.thread(threadList);
-                                }
-                
-                                break;
-                
-                            case "update":
-                                {
-                                    const linkTo = '/update_process';
-                                    const titleStr = 'title';
-                                    const descriptionStr = 'description';
-                                    const idStr = 'id';
-
-                                    const id = queryID;
-                                    const title = thread[0].title;
-                                    const description = thread[0].description;
-                                    const selector = authorSelector(authorList, thread[0].authorID);
-                
-                                    content = `
-                                        <form action = "${linkTo}" method ="post">
-                                            <input type = "hidden" name = "${idStr}" value = "${id}">
-                                            <p>
-                                                <input type="text" name = "${titleStr}" value = "${title}" placeholder = "${titleStr}">
-                                            </p>
-                                            <p>
-                                                <textarea name = "${descriptionStr}" placeholder = "${descriptionStr}">${description}</textarea>
-                                            </p>
-                                            ${selector}
-                                            <p>
-                                                <input type="submit">
-                                            </p>
-                                        </form>
-                                    `;
-
-                                    button = buttonSelector.none();
-                                    pageTitle = 'Update';
-                                    list = listMaker.thread(threadList);
-                                }
-                                break;
-                            
-                            case "author":
-                                {
-                                    button = buttonSelector.none();
-                                    pageTitle = "Author";
-                                    list = listMaker.author(authorList);
-                                }
-                                break;
-
-                            case "createAuthor":
-                                {
-                                    const linkTo = '/createAuthor_process';
-                                    const nameStr = 'name';
-                                    const profileStr = 'profile';
-                                    content +=`
-                                        <p>
-                                        <form action = "${linkTo}" method ="post">
-                                            <p>
-                                                <input type="text" name = "${nameStr}" placeholder = "${nameStr}">
-                                            </p>
-                                            <p>
-                                                <textarea name = "${profileStr}" placeholder = "${profileStr}"></textarea>
-                                            </p>
-                                            <p>
-                                                <input type="submit">
-                                            </p>
-                                        </form>
-                                        </p>
-                                    `;
-
-                                    list = listMaker.author(authorList);
-                                }
-                                break;
-                            
-                            case "updateAuthor":
-                                {
-                                    const linkTo = '/updateAuthor_process';
-                                    const idStr = 'id';
-                                    const nameStr = 'name';
-                                    const profileStr = 'profile';
-
-                                    const authorID = author[0].id;
-                                    const name = author[0].name;
-                                    const profile = author[0].profile;
-                                    content += `
-                                        <form action = "${linkTo}" method ="post">
-                                            <input type = "hidden" name = "${idStr}" value = "${authorID}">
-                                            <p>
-                                                <input type="text" name = "${nameStr}" value = "${name}" placeholder = "${nameStr}">
-                                            </p>
-                                            <p>
-                                                <textarea name = "${profileStr}" placeholder = "${profileStr}">${profile}</textarea>
-                                            </p>
-                                            <p>
-                                                <input type="submit">
-                                            </p>
-                                        </form>
-                                    `;
-
-                                    button = buttonSelector.none();
-                                    pageTitle = "UpdateAuthor";
-                                    list = listMaker.author(authorList);
-                                }
-                                break;
-                            
-                            default:
-                                throw new Error();
-
-                                break;
-                        }
-
-
-                        // 페이지 결합
-                        const template = `
-                        <!doctype html>
-                        <html>
-                            <head>
-                                <title>WEB1 - ${pageTitle}</title>
-                                <meta charset="utf-8">
-                            </head>
-                            <body>
-                                <h1><a href="/">WEB</a></h1>
-                                <a href = "/author">author<a>
-                                ${list}
-                                ${button}
-                                ${content}
-                            </body>
-                        </html>
-                        `;
-
-                        response.writeHead(200);
-                        response.end(template);
-                    })
-                })
-            })
-        })
+                response.send(template);
+            });
+        });
     }
 }
 module.exports = template;
-
-//처음에 선택하고 싶은 옵션이 있는 경우 queryID를 넣는다
-function authorSelector(authorList, targetAuthorID){
-    let selector = '<select name = "author">';
-    for (let i = 0; i < authorList.length; i++){
-        const authorID = authorList[i].id;
-        const selected = 'selected';
-        if (targetAuthorID === authorID){
-            selector += `<option value = '${authorID}' ${selected}>${authorList[i].name}</option>`;
-            
-            continue;
-        }
-        selector += `<option value = '${authorID}'>${authorList[i].name}</option>`;
-    }
-    selector += '</select>'
-
-    return selector;
-}
